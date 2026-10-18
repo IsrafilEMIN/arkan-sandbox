@@ -34,8 +34,12 @@ class ParseMoneyTest(unittest.TestCase):
         self.assertEqual(parse_money("0.5"), 50)
         self.assertEqual(parse_money("2.5"), 250)
 
+    def test_accepts_thousands_separators(self):
+        self.assertEqual(parse_money("1,250.00"), 125000)
+        self.assertEqual(parse_money("$12,000"), 1200000)
+
     def test_rejects_text_that_is_not_a_price(self):
-        for text in ["", "abc", "1.234", "-1", "1.2.3"]:
+        for text in ["", "abc", "1.234", "-1", "1.2.3", "1,25", ",100"]:
             with self.subTest(text=text):
                 with self.assertRaises(InvalidPrice):
                     parse_money(text)
