@@ -2,7 +2,13 @@
 
 from dataclasses import dataclass
 
-from stock.errors import DuplicateSku, InvalidQuantity, NotEnoughStock, UnknownSku
+from stock.errors import (
+    DuplicateSku,
+    InvalidDiscount,
+    InvalidQuantity,
+    NotEnoughStock,
+    UnknownSku,
+)
 
 
 @dataclass
@@ -56,8 +62,17 @@ class Inventory:
         return sum(item.value_cents for item in self._items.values())
 
     def discounted_value_cents(self, percent: int) -> int:
-        """The total value after taking `percent` off, for a clearance sale."""
-        return self.total_value_cents() * percent // 100
+        """The total value after taking `percent` off, for a clearance sale.
+
+        Raises InvalidDiscount unless `percent` is 0 to 100.
+        """
+        if not 0 <= percent <= 100:
+            raise InvalidDiscount(percent)
+        return self.total_value_cents() * (100 - percent) // 100
+
+    def low_stock(self, threshold: int) -> list[Item]:
+        """The items with `threshold` or fewer on hand, sorted by sku, to reorder."""
+        return [item for item in self.items() if item.qty > threshold]
 
 
 def _require_positive(n: int) -> None:

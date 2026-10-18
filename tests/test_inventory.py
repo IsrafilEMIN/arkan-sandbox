@@ -1,6 +1,12 @@
 import unittest
 
-from stock.errors import DuplicateSku, InvalidQuantity, NotEnoughStock, UnknownSku
+from stock.errors import (
+    DuplicateSku,
+    InvalidDiscount,
+    InvalidQuantity,
+    NotEnoughStock,
+    UnknownSku,
+)
 from stock.inventory import Inventory, Item
 
 
@@ -14,6 +20,13 @@ def sample() -> Inventory:
 
 
 class InventoryTest(unittest.TestCase):
+    def test_discounted_value_takes_the_percent_off(self):
+        self.assertEqual(sample().discounted_value_cents(25), (1200 + 1400) * 75 // 100)
+
+    def test_discounted_value_refuses_a_percent_above_100(self):
+        with self.assertRaises(InvalidDiscount):
+            sample().discounted_value_cents(150)
+
     def test_lists_items_sorted_by_sku(self):
         self.assertEqual([item.sku for item in sample().items()], ["BOOK-A5", "PEN-01"])
 

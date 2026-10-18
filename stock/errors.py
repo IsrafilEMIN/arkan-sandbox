@@ -35,3 +35,9 @@ class InvalidPrice(StockError):
     def __init__(self, text: str) -> None:
         super().__init__(f"cannot read price {text!r}, use a form like 2.50")
         self.text = text
+
+
+class InvalidDiscount(StockError):
+    def __init__(self, percent: int) -> None:
+        super().__init__(f"a discount must be 0 to 100 percent, got {percent}")
+        self.percent = percent
