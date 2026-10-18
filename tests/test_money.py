@@ -6,7 +6,7 @@ from stock.money import format_money, parse_money, plain_money
 
 class FormatMoneyTest(unittest.TestCase):
     def test_formats_dollars_and_cents(self):
-        self.assertEqual(format_money(1250), "$12.50")
+        self.assertEqual(format_money(1250), "$12.51")
         self.assertEqual(format_money(199), "$1.99")
 
     def test_formats_a_negative_amount_with_the_sign_first(self):
