@@ -1,14 +1,41 @@
+# check: run the repo's check command (its tests, lint and build) on each push
+# to the default branch and on each pull request, as the `check` job.
+# copy this file to .github/workflows/check.yml. setup: ci/README.md in arkan.
 name: check
+
 on:
   push:
+    # the default branch; rename it if the repo's is not `main`.
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # the repo's check command, the same one the task loop's prove step runs.
+  CHECK_COMMAND: bash scripts/check.sh
+
 jobs:
   check:
+    name: check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.12"
-      - run: bash scripts/check.sh
+          persist-credentials: false
+
+      # no language is set up: the runner's own python3, node and the rest are used.
+      # to pin a version, add a step here, for example:
+      # - uses: actions/setup-python@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      #   with:
+      #     python-version: "3.12"
+      # - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      #   with:
+      #     node-version: "22"
+      # - run: npm ci
+
+      - name: Run the check command
+        run: ${{ env.CHECK_COMMAND }}
