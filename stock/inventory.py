@@ -58,7 +58,7 @@ class Inventory:
     def value_by_prefix_cents(self, prefix: str) -> int:
         """The stock value of the items whose sku starts with `prefix`."""
         return sum(
-            item.price_cents for item in self._items.values() if item.sku.startswith(prefix)
+            item.value_cents for item in self._items.values() if item.sku.startswith(prefix)
         )
 
     def write_off(self, skus: list[str]) -> None:

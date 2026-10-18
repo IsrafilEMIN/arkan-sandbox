@@ -25,12 +25,12 @@ class InventoryTest(unittest.TestCase):
     def test_value_by_prefix_adds_the_matching_items(self):
         inventory = Inventory(
             [
-                Item("PEN-01", "blue pen", 1, 120),
-                Item("PEN-02", "red pen", 1, 80),
+                Item("PEN-01", "blue pen", 2, 120),
+                Item("PEN-02", "red pen", 3, 80),
                 Item("BOOK-A5", "a5 notebook", 1, 350),
             ]
         )
-        self.assertEqual(inventory.value_by_prefix_cents("PEN-"), 200)
+        self.assertEqual(inventory.value_by_prefix_cents("PEN-"), 480)
 
     def test_write_off_sets_the_quantity_to_zero(self):
         inventory = sample()
