@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from stock.cli import main
 
@@ -22,6 +23,10 @@ class CliTest(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main(["--file", self.file, *args], today=datetime.date(2026, 10, 18))
         return code, out.getvalue(), err.getvalue()
+
+    def write_items(self, *items: tuple[str, int]) -> None:
+        rows = [{"sku": sku, "name": sku, "qty": qty, "price_cents": 120} for sku, qty in items]
+        Path(self.file).write_text(json.dumps({"items": rows}), encoding="utf-8")
 
     def test_add_then_list(self):
         self.run_stock("add", "PEN-01", "blue pen", "10", "1.20")
@@ -54,10 +59,6 @@ class CliTest(unittest.TestCase):
     def test_list_with_no_items(self):
         self.assertEqual(self.run_stock("list")[1], "no items\n")
 
-    def write_items(self, *items: tuple[str, int]) -> None:
-        rows = [{"sku": sku, "name": sku, "qty": qty, "price_cents": 120} for sku, qty in items]
-        Path(self.file).write_text(json.dumps({"items": rows}), encoding="utf-8")
-
     def test_every_command_warns_about_each_negative_quantity_then_runs(self):
         self.write_items(("PEN-01", -3), ("BOOK-A5", 2), ("CLIP-9", -1))
         warnings = (
@@ -67,15 +68,28 @@ class CliTest(unittest.TestCase):
         export = Path(self.dir.name) / "exports" / "stock-2026-10-18.csv"
         cases = [
             (("list",), "BOOK-A5      2       $1.20  BOOK-A5\n"),
+            (("value",), "-$2.40\n"),
             (("receive", "BOOK-A5", "1"), "BOOK-A5: 3 on hand\n"),
             (("remove", "BOOK-A5", "1"), "BOOK-A5: 2 on hand\n"),
             (("export",), f"{export}\n"),
+            (("add", "TAPE-1", "tape", "1", "0.90"), "added TAPE-1: 1 x tape at $0.90\n"),
         ]
         for args, want_out in cases:
             with self.subTest(args=args):
                 code, out, err = self.run_stock(*args)
                 self.assertEqual((code, err), (0, warnings))
                 self.assertTrue(out.startswith(want_out), out)
+
+    def test_serve_warns_once_when_it_starts(self):
+        self.write_items(("PEN-01", -3))
+        server = mock.Mock(server_address=("127.0.0.1", 8000))
+        server.serve_forever.side_effect = KeyboardInterrupt
+        with mock.patch("stock.web.make_server", return_value=server):
+            code, _, err = self.run_stock("serve")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            err, f"stock: warning: PEN-01 has a negative quantity (-3), check {self.file}\n"
+        )
 
     def test_a_failing_command_still_warns_and_exits_1(self):
         self.write_items(("PEN-01", -3))
