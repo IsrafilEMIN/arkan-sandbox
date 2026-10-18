@@ -32,6 +32,10 @@ _Avoid_: catalogue, database
 the JSON file that holds the inventory, `inventory.json` unless `--file` or `STOCK_FILE` names another.
 _Avoid_: db, store
 
+**Running low**:
+an item whose quantity is at or below the cutoff: 5, unless `--at` sets another.
+_Avoid_: low stock level, reorder point
+
 **Receive**:
 add stock that arrived to an item's quantity.
 _Avoid_: restock, add stock
