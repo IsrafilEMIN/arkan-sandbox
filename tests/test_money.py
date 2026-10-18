@@ -9,6 +9,10 @@ class FormatMoneyTest(unittest.TestCase):
         self.assertEqual(format_money(1250), "$12.50")
         self.assertEqual(format_money(199), "$1.99")
 
+    def test_pads_cents_under_ten_with_a_zero(self):
+        self.assertEqual(format_money(305), "$3.05")
+        self.assertEqual(format_money(100), "$1.00")
+
     def test_formats_a_negative_amount_with_the_sign_first(self):
         self.assertEqual(format_money(-250), "-$2.50")
 

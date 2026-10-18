@@ -11,7 +11,7 @@ def format_money(cents: int) -> str:
     """Format integer cents as dollars, e.g. 1250 -> "$12.50"."""
     sign = "-" if cents < 0 else ""
     cents = abs(cents)
-    return f"{sign}${cents // 100}.{cents % 100}"
+    return f"{sign}${cents // 100}.{cents % 100:02d}"
 
 
 def plain_money(cents: int) -> str:
@@ -27,4 +27,4 @@ def parse_money(text: str) -> int:
     if not _PRICE.fullmatch(cleaned):
         raise InvalidPrice(text)
     dollars, _, frac = cleaned.replace(",", "").partition(".")
-    return int(dollars) * 100 + int(frac or "0")
+    return int(dollars) * 100 + int(frac.ljust(2, "0"))
