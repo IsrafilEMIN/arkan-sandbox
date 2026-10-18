@@ -113,13 +113,19 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           REVIEW_OUTCOME: ${{ steps.review.outcome }}
           FINDINGS_JSON: ${{ steps.review.outputs.structured_output }}
+          EXECUTION_FILE: ${{ steps.review.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
         run: |
           short=${HEAD_SHA:0:7}
           if [ -z "$FINDINGS_JSON" ] || ! printf '%s' "$FINDINGS_JSON" | jq -e '.findings | type == "array"' > /dev/null; then
-            text="arkan-review did not finish on \`$short\` (review step: $REVIEW_OUTCOME; no findings were returned, for example after the turn limit or an auth error). The check stays red until a run finishes; the run log has the cause.
+            # the model's last result line says why (auth, quota, turn limit); keep it short.
+            cause=""
+            if [ -f "$EXECUTION_FILE" ]; then
+              cause=$(jq -r '[.[] | select(.type == "result")] | last | "\(.subtype // ""), turns \(.num_turns // "?"): \(.result // "" | tostring | .[0:300])"' "$EXECUTION_FILE" 2>/dev/null || true)
+            fi
+            text="arkan-review did not finish on \`$short\`: no findings were returned (review step: $REVIEW_OUTCOME; ${cause:-no result recorded}). The check stays red until a run finishes.
           <!-- arkan-review head=$HEAD_SHA result=error -->"
             gh api "repos/$REPO/issues/$PR/comments" -f body="$text" > /dev/null || true
-            echo "::error title=arkan-review::no findings returned (review step: $REVIEW_OUTCOME)"
+            echo "::error title=arkan-review::no findings returned (review step: $REVIEW_OUTCOME; $cause)"
             exit 1
           fi
           printf '%s' "$FINDINGS_JSON" > "$RUNNER_TEMP/findings.json"
