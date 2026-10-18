@@ -1,6 +1,7 @@
 # arkan-review: review each pull request push with arkan's code-review and
-# security-review skills, post the findings, and fail the `arkan-review`
-# check while an `important` or security finding is open.
+# security-review skills, keep the findings in one sticky pr comment, and fail
+# the `arkan-review` check while an `important` or security finding is open.
+# each new head is a round; a later round reviews only the commits since the last.
 # copy this file to .github/workflows/arkan-review.yml. setup: ci/README.md in arkan.
 name: arkan-review
 
@@ -20,6 +21,9 @@ permissions:
 env:
   REVIEW_MODEL: claude-sonnet-5-5
   MAX_TURNS: "40"
+  # the round that stops reviewing and asks for a rethink, and its label.
+  RETHINK_ROUND: "4"
+  RETHINK_LABEL: "arkan:rethink"
   # a pr whose changed files all match this is docs-only and is not reviewed.
   DOCS_ONLY_REGEX: '(\.(md|mdx|txt|rst)$|^docs/|^LICENSE$|^NOTICE$)'
   # files that steer the agent or its reviewer are never docs, even as markdown:
@@ -76,9 +80,83 @@ jobs:
           $marker" > /dev/null || echo "::warning::could not comment on the pr (read-only token)"
           fi
 
+      # the sticky comment's first line is the marker:
+      # <!-- arkan:review round=<n> head=<sha> reviewed=<sha> findings=<id>:<state>,... blocking=<id>,... -->
+      # head is the commit of round n; reviewed is the last commit a review ran on.
+      - name: Read the round marker
+        id: round
+        if: steps.scope.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          labels=$(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name')
+          if printf '%s\n' "$labels" | grep -qxF "$RETHINK_LABEL"; then
+            echo "action=paused" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # only the bot's own comment counts, so nobody else can plant a marker.
+          gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- arkan:review ")))' \
+            | jq -s '.[0] // empty' > "$RUNNER_TEMP/arkan-sticky.json"
+          comment_id="" marker=""
+          : > "$RUNNER_TEMP/arkan-sticky.md"
+          if [ -s "$RUNNER_TEMP/arkan-sticky.json" ]; then
+            comment_id=$(jq -r .id "$RUNNER_TEMP/arkan-sticky.json")
+            jq -r .body "$RUNNER_TEMP/arkan-sticky.json" > "$RUNNER_TEMP/arkan-sticky.md"
+            marker=$(head -n1 "$RUNNER_TEMP/arkan-sticky.md")
+          fi
+          field() { printf '%s' "$marker" | grep -oE "(^| )$1=[^ ]*" | head -n1 | sed -E "s/^ ?$1=//" || true; }
+          m_round=$(field round) m_head=$(field head) m_reviewed=$(field reviewed)
+          m_findings=$(field findings) m_blocking=$(field blocking)
+          if ! [[ $m_round =~ ^[0-9]+$ && $m_head =~ ^[0-9a-f]{40}$ && $m_reviewed =~ ^[0-9a-f]{40}$ ]]; then
+            m_round="" m_reviewed="" m_findings="" m_blocking=""
+          fi
+          # the round goes up only when the head changed; a rerun of the same head
+          # keeps its round, and one that already finished is not reviewed again.
+          action=review round=1
+          if [ -n "$m_round" ]; then
+            if [ "$m_head" = "$HEAD_SHA" ]; then
+              round=$m_round
+              [ "$m_reviewed" = "$HEAD_SHA" ] && action=recheck
+            else
+              round=$((m_round + 1))
+              [ "$round" -eq "$RETHINK_ROUND" ] && action=rethink
+            fi
+          fi
+          # round 1 reviews the full pr diff; a later round only the commits since
+          # the last reviewed one, or the full diff again if that is not an ancestor.
+          if [ -n "$m_reviewed" ] && git merge-base --is-ancestor "$m_reviewed" "$HEAD_SHA" 2>/dev/null; then
+            from=$m_reviewed diff="$m_reviewed..$HEAD_SHA"
+            scope="only the commits since \`${m_reviewed:0:7}\`, the last reviewed commit"
+          else
+            from=$BASE_SHA diff="$BASE_SHA...$HEAD_SHA" scope="the full pr diff"
+            if [ -n "$m_reviewed" ]; then
+              scope="the full pr diff, since the last reviewed commit \`${m_reviewed:0:7}\` is not an ancestor of the head (a force-push or rebase)"
+            fi
+          fi
+          {
+            echo "action=$action"
+            echo "round=$round"
+            echo "comment_id=$comment_id"
+            echo "reviewed=$m_reviewed"
+            echo "findings=$m_findings"
+            echo "blocking=$m_blocking"
+            echo "from=$from"
+            echo "diff=$diff"
+            echo "scope=$scope"
+            echo "prior<<ARKAN_PRIOR_EOF"
+            grep -E '^- `[0-9a-f]{8}`' "$RUNNER_TEMP/arkan-sticky.md" || echo "none (this is round 1)"
+            echo "ARKAN_PRIOR_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "round $round: $action, git diff $diff"
+
       - name: Review with arkan skills
         id: review
-        if: steps.scope.outputs.skip != 'true'
+        if: steps.scope.outputs.skip != 'true' && steps.round.outputs.action == 'review'
         continue-on-error: true
         uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
         with:
@@ -86,18 +164,24 @@ jobs:
           # or, billed per token: anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
           prompt: |
-            You are the arkan-review ci reviewer for pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}. No person is watching this run: where a skill says to ask the user, take the default written here and go on.
+            You are the arkan-review ci reviewer for pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}, review round ${{ steps.round.outputs.round }}. No person is watching this run: where a skill says to ask the user, take the default written here and go on.
 
-            The pr head ${{ github.event.pull_request.head.sha }} is checked out. The base is ${{ github.event.pull_request.base.sha }}.
-            The diff to review is `git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}`. This is the full pr diff on every push: the round marker that narrows a later push to its new commits is not built yet.
+            The pr head ${{ github.event.pull_request.head.sha }} is checked out. The pr base is ${{ github.event.pull_request.base.sha }}.
+            The diff to review is `git diff ${{ steps.round.outputs.diff }}`: ${{ steps.round.outputs.scope }}.
 
-            1. Run the `code-review` skill with the fixed point ${{ github.event.pull_request.base.sha }}. Find the spec as the skill says; if none is found, skip the Spec axis and note "no spec available" in the summary. Keep its verify pass and its tags.
-            2. Run the `security-review` skill. Use ${{ github.event.pull_request.base.sha }} wherever it says `origin/HEAD`.
-            3. Return the structured output, one entry per kept finding:
-               - a code-review finding: `source` "code-review", `tag` as the skill tagged it.
-               - a security-review finding: `source` "security-review", `tag` "important", `severity` as the skill rated it.
-               - `file` is relative to the repo root; `line` is a line number in the head version of that file, inside a changed hunk where the finding allows.
-               - `body` is one or two sentences: the defect and the fix.
+            Findings from earlier rounds, already posted (id, state, tag, file:line, symbol, source and round, then the finding):
+            ${{ steps.round.outputs.prior }}
+
+            1. Run the `code-review` skill with the fixed point ${{ github.event.pull_request.base.sha }}. If earlier findings are listed above, this is a re-review: review only the diff above, give the earlier findings to every sub-agent, and never report one of them again, fixed or not. Use the fixed point only to decide `pre-existing`. Find the spec as the skill says; if none is found, skip the Spec axis and note "no spec available" in the summary. Keep its verify pass and its tags.
+            2. Run the `security-review` skill on the same diff. Use ${{ steps.round.outputs.from }} wherever it says `origin/HEAD`. Do not report an earlier finding again.
+            3. Return the structured output:
+               - `findings`, one entry per kept new finding:
+                 - a code-review finding: `source` "code-review", `tag` as the skill tagged it.
+                 - a security-review finding: `source` "security-review", `tag` "important", `severity` as the skill rated it.
+                 - `class` is a short kebab-case name for the kind of defect, such as `off-by-one`, `missing-validation` or `wrong-sign`. `symbol` is the function, method or class the defect is in, or `-` at the top level of the file.
+                 - `file` is relative to the repo root; `line` is a line number in the head version of that file, inside a changed hunk where the finding allows.
+                 - `body` is one or two sentences: the defect and the fix.
+               - `fixed`: the ids of earlier findings in state `open` whose defect is gone at the head. Read the code at its file and symbol; list an id only when you checked that the defect no longer exists. Empty in round 1.
                - `summary` is one line: the count of each tag, and the commit you reviewed.
 
             Leave the working tree as it is and post nothing to GitHub: the next step posts your findings and sets the check.
@@ -105,57 +189,142 @@ jobs:
             --model ${{ env.REVIEW_MODEL }}
             --max-turns ${{ env.MAX_TURNS }}
             --allowedTools "Skill,Read,Glob,Grep,Task,Agent,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git rev-parse:*),Bash(git merge-base:*),Bash(git remote show:*)"
-            --json-schema '{"type":"object","properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string","enum":["code-review","security-review"]},"tag":{"type":"string","enum":["important","nit","pre-existing"]},"severity":{"type":"string"},"file":{"type":"string"},"line":{"type":"integer"},"body":{"type":"string"}},"required":["source","tag","file","line","body"]}}},"required":["summary","findings"]}'
+            --json-schema '{"type":"object","properties":{"summary":{"type":"string"},"fixed":{"type":"array","items":{"type":"string"}},"findings":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string","enum":["code-review","security-review"]},"tag":{"type":"string","enum":["important","nit","pre-existing"]},"severity":{"type":"string"},"class":{"type":"string"},"symbol":{"type":"string"},"file":{"type":"string"},"line":{"type":"integer"},"body":{"type":"string"}},"required":["source","tag","class","symbol","file","line","body"]}}},"required":["summary","fixed","findings"]}'
 
       - name: Post findings and set the check
-        if: always() && steps.scope.outputs.skip != 'true'
+        if: always() && steps.scope.outputs.skip != 'true' && steps.round.outputs.action != ''
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          ACTION: ${{ steps.round.outputs.action }}
+          ROUND: ${{ steps.round.outputs.round }}
+          COMMENT_ID: ${{ steps.round.outputs.comment_id }}
+          OLD_REVIEWED: ${{ steps.round.outputs.reviewed }}
+          OLD_FINDINGS: ${{ steps.round.outputs.findings }}
+          OLD_BLOCKING: ${{ steps.round.outputs.blocking }}
+          DIFF: ${{ steps.round.outputs.diff }}
+          SCOPE: ${{ steps.round.outputs.scope }}
           REVIEW_OUTCOME: ${{ steps.review.outcome }}
           FINDINGS_JSON: ${{ steps.review.outputs.structured_output }}
           EXECUTION_FILE: ${{ steps.review.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
         run: |
           short=${HEAD_SHA:0:7}
-          if [ -z "$FINDINGS_JSON" ] || ! printf '%s' "$FINDINGS_JSON" | jq -e '.findings | type == "array"' > /dev/null; then
+          cd "$RUNNER_TEMP"
+          # the pass/fail rule, decided here and not by the model: fail while any
+          # id in `blocking` (an `important` or security-review finding) is `open`.
+          open_blocking() {
+            jq -rn --arg f "$1" --arg b "$2" '
+              ($f | split(",") | map(select(. != "") | split(":") | {key: .[0], value: .[1]}) | from_entries) as $s
+              | [$b | split(",")[] | select(. != "" and $s[.] == "open")] | length'
+          }
+          write_sticky() {
+            if [ -n "$COMMENT_ID" ]; then
+              gh api -X PATCH "repos/$REPO/issues/comments/$COMMENT_ID" -f body="$1" > /dev/null
+            else
+              gh api "repos/$REPO/issues/$PR/comments" -f body="$1" > /dev/null
+            fi
+          }
+          old_lines=$(grep -E '^- `[0-9a-f]{8}`' arkan-sticky.md || true)
+          case "$ACTION" in
+            paused)
+              echo "::error title=arkan-review::paused: the pr has the label $RETHINK_LABEL. a person removes it to resume."
+              exit 1 ;;
+            recheck)
+              n=$(open_blocking "$OLD_FINDINGS" "$OLD_BLOCKING")
+              echo "round $ROUND already reviewed $short: $n blocking findings open"
+              if [ "$n" -gt 0 ]; then echo "::error title=arkan-review::$n blocking findings open"; exit 1; fi
+              exit 0 ;;
+            rethink)
+              # the label may not exist yet; creating it twice fails harmlessly.
+              gh api "repos/$REPO/labels" -f name="$RETHINK_LABEL" -f color=d93f0b \
+                -f description="arkan-review stopped after 3 rounds; remove to resume" > /dev/null 2>&1 || true
+              gh api "repos/$REPO/issues/$PR/labels" -f "labels[]=$RETHINK_LABEL" > /dev/null
+              write_sticky "<!-- arkan:review round=$ROUND head=$HEAD_SHA reviewed=$OLD_REVIEWED findings=$OLD_FINDINGS blocking=$OLD_BLOCKING -->
+          ### arkan-review round $ROUND on \`$short\`: step back and rethink the approach
+
+          Three rounds of review did not end the loop, so this round reviews nothing and the check stays red. Look at which findings keep coming back, and rethink the approach rather than patch it again. While the label \`$RETHINK_LABEL\` is on this pr, arkan-review skips every run. A person removes the label to resume; the next run reviews everything since \`${OLD_REVIEWED:0:7}\`, and the round count goes on.
+
+          #### findings, all rounds
+          ${old_lines:-none}"
+              echo "::error title=arkan-review::round $ROUND: step back and rethink the approach"
+              exit 1 ;;
+          esac
+          if [ -z "$FINDINGS_JSON" ] || ! printf '%s' "$FINDINGS_JSON" | jq -e '(.findings | type == "array") and (.fixed | type == "array")' > /dev/null; then
             # the model's last result line says why (auth, quota, turn limit); keep it short.
+            # the marker is not touched, so the next run is the same round again.
             cause=""
             if [ -f "$EXECUTION_FILE" ]; then
               cause=$(jq -r '[.[] | select(.type == "result")] | last | "\(.subtype // ""), turns \(.num_turns // "?"): \(.result // "" | tostring | .[0:300])"' "$EXECUTION_FILE" 2>/dev/null || true)
             fi
-            text="arkan-review did not finish on \`$short\`: no findings were returned (review step: $REVIEW_OUTCOME; ${cause:-no result recorded}). The check stays red until a run finishes.
+            text="arkan-review did not finish round $ROUND on \`$short\`: no findings were returned (review step: $REVIEW_OUTCOME; ${cause:-no result recorded}). The check stays red until a run finishes.
           <!-- arkan-review head=$HEAD_SHA result=error -->"
             gh api "repos/$REPO/issues/$PR/comments" -f body="$text" > /dev/null || true
             echo "::error title=arkan-review::no findings returned (review step: $REVIEW_OUTCOME; $cause)"
             exit 1
           fi
-          printf '%s' "$FINDINGS_JSON" > "$RUNNER_TEMP/findings.json"
-          cd "$RUNNER_TEMP"
-          # the pass/fail rule: any `important` finding, or any security-review finding, fails.
-          blocking=$(jq '[.findings[] | select(.tag == "important" or .source == "security-review")] | length' findings.json)
-          total=$(jq '.findings | length' findings.json)
-          if [ "$blocking" -gt 0 ]; then verdict="fail: $blocking of $total findings block"; else verdict="pass: $total findings, none block"; fi
-          body=$(jq -r --arg v "$verdict" --arg h "$short" --arg base "${BASE_SHA:0:7}" --arg head "$HEAD_SHA" '
-            "### arkan-review on `\($h)`: \($v)\n\n" +
-            "Reviewed `git diff \($base)...\($h)`, the full pr diff (a later push is not yet narrowed to its new commits).\n\n" +
-            .summary + "\n\n" +
-            ( .findings | map("- `\(.tag)` `\(.file):\(.line)` (\(.source)\(if .severity then ", " + .severity else "" end)): \(.body)") | join("\n") ) +
-            "\n\n<!-- arkan-review head=\($head) -->"' findings.json)
-          jq --arg body "$body" --arg sha "$HEAD_SHA" '{
-            commit_id: $sha, event: "COMMENT", body: $body,
-            comments: [.findings[] | {path: .file, line: .line, side: "RIGHT",
-              body: "`\(.tag)` `\(.file):\(.line)` (\(.source)): \(.body)"}]
-          }' findings.json > review.json
-          # inline comments need lines inside the diff; if github refuses one, post the review without them.
-          if ! gh api "repos/$REPO/pulls/$PR/reviews" --input review.json > /dev/null; then
-            jq '.comments = []' review.json > review-plain.json
-            gh api "repos/$REPO/pulls/$PR/reviews" --input review-plain.json > /dev/null
+          printf '%s' "$FINDINGS_JSON" > arkan-out.json
+          # a finding's id: the first 8 hex of sha256("class|file|symbol"), so it
+          # does not move with the line. an id already in the marker is not posted.
+          : > arkan-new.jsonl
+          while read -r f; do
+            key=$(jq -r '[(.class | ascii_downcase | gsub("[^a-z0-9]+"; "-") | ltrimstr("-") | rtrimstr("-")),
+              (.file | ltrimstr("./")), (.symbol | gsub("\\s+"; ""))] | join("|")' <<< "$f")
+            id=$(printf '%s' "$key" | sha256sum | cut -c1-8)
+            jq -c --arg id "$id" '. + {id: $id}' <<< "$f" >> arkan-new.jsonl
+          done < <(jq -c '.findings[]' arkan-out.json)
+          # an earlier `open` finding becomes `fixed` when the model lists its id in `fixed`.
+          jq -s --arg f "$OLD_FINDINGS" --arg b "$OLD_BLOCKING" --slurpfile out arkan-out.json '
+            ($f | split(",") | map(select(. != "") | split(":") | {id: .[0], state: .[1]})) as $old
+            | ($out[0].fixed) as $fx
+            | (reduce .[] as $n ([]; if any($old[]; .id == $n.id) or any(.[]; .id == $n.id) then . else . + [$n] end)) as $new
+            | {
+                returned: length,
+                summary: $out[0].summary,
+                new: $new,
+                newly_fixed: [$old[] | select(.state == "open" and (.id as $i | any($fx[]; . == $i))) | .id],
+                blocking: (($b | split(",") | map(select(. != ""))) + [$new[] | select(.tag == "important" or .source == "security-review") | .id])
+              }
+            | .all = ([$old[] | .id as $i | if (.state == "open" and any($fx[]; . == $i)) then .state = "fixed" else . end] + [$new[] | {id, state: "open"}])
+            | .findings = ([.all[] | "\(.id):\(.state)"] | join(","))
+            | .blocking_list = (.blocking | join(","))
+            | .open_blocking = ([.blocking[] as $i | .all[] | select(.id == $i and .state == "open")] | length)
+          ' arkan-new.jsonl > arkan-state.json
+          lines=$old_lines
+          for id in $(jq -r '.newly_fixed[]' arkan-state.json); do
+            lines=$(printf '%s\n' "$lines" | sed -E "s/^(- \`$id\` )\*\*open\*\*/\1**fixed**/")
+          done
+          new_lines=$(jq -r --arg r "$ROUND" '.new[] | "- `\(.id)` **open** `\(.tag)` `\(.file):\(.line)` `\(.symbol)` (\(.source)\(if .severity then ", " + .severity else "" end), round \($r)): \(.body | gsub("[\r\n]+"; " ") | gsub("<!--|-->"; ""))"' arkan-state.json)
+          lines=$(printf '%s\n%s\n' "$lines" "$new_lines" | sed '/^$/d')
+          n=$(jq .open_blocking arkan-state.json)
+          if [ "$n" -gt 0 ]; then verdict="fail: $n blocking findings open"; else verdict="pass: no blocking finding open"; fi
+          counts=$(jq -r '"\(.new | length) new, \(.newly_fixed | length) fixed, \(.returned - (.new | length)) already posted and not posted again"' arkan-state.json)
+          summary=$(jq -r '.summary | gsub("[\r\n]+"; " ") | gsub("<!--|-->"; "")' arkan-state.json)
+          write_sticky "<!-- arkan:review round=$ROUND head=$HEAD_SHA reviewed=$HEAD_SHA findings=$(jq -r .findings arkan-state.json) blocking=$(jq -r .blocking_list arkan-state.json) -->
+          ### arkan-review round $ROUND on \`$short\`: $verdict
+
+          Reviewed \`git diff $DIFF\`: $SCOPE. This round: $counts.
+
+          $summary
+
+          #### findings, all rounds
+          ${lines:-none}"
+          # inline comments for this round's new findings only. they need lines inside
+          # the diff; if github refuses one, the findings are still in the comment above.
+          if [ "$(jq '.new | length' arkan-state.json)" -gt 0 ]; then
+            jq --arg sha "$HEAD_SHA" --arg r "$ROUND" '{
+              commit_id: $sha, event: "COMMENT",
+              body: "arkan-review round \($r): \(.new | length) new findings. The summary and every round are in the arkan-review comment.",
+              comments: [.new[] | {path: .file, line: .line, side: "RIGHT",
+                body: "`\(.tag)` `\(.id)` (\(.source)): \(.body)"}]
+            }' arkan-state.json > arkan-review.json
+            gh api "repos/$REPO/pulls/$PR/reviews" --input arkan-review.json > /dev/null \
+              || echo "::warning::github refused an inline comment; the findings are in the arkan-review comment"
           fi
-          echo "$verdict"
-          if [ "$blocking" -gt 0 ]; then
+          echo "round $ROUND: $verdict ($counts)"
+          if [ "$n" -gt 0 ]; then
             echo "::error title=arkan-review::$verdict"
             exit 1
           fi
+
