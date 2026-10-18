@@ -17,13 +17,11 @@ JSON = "application/json"
 TEXT = "text/plain; charset=utf-8"
 CSV = "text/csv; charset=utf-8"
 
-STYLE = """<style>
-body { font: 18px system-ui, sans-serif; margin: 1rem; }
+STYLE = """body { font: 18px system-ui, sans-serif; margin: 1rem; }
 table { border-collapse: collapse; width: 100%; }
 th, td { padding: .4rem .6rem; border-bottom: 1px solid #ccc; text-align: left; }
 .n { text-align: right; }
-li { padding: .4rem 0; }
-</style>"""
+li { padding: .4rem 0; }"""
 
 
 class Response(NamedTuple):
@@ -72,19 +70,14 @@ def render_page(inventory: Inventory) -> str:
         )
         for item in inventory.items()
     )
-    return f"""<!doctype html>
-<html lang=en>
-<meta charset=utf-8>
-<meta name=viewport content="width=device-width, initial-scale=1">
-<title>Stock</title>
-{STYLE}
-<h1>Stock</h1>
-<p><a href="/exports">Exports</a></p>
+    return _html_page(
+        "Stock",
+        f"""<p><a href="/exports">Exports</a></p>
 <table>
 <tr><th>SKU</th><th>Name</th><th class=n>Qty</th><th class=n>Price</th></tr>
 {rows}
-</table>
-"""
+</table>""",
+    )
 
 
 def render_exports(files: list[Path]) -> str:
@@ -95,15 +88,20 @@ def render_exports(files: list[Path]) -> str:
         for path in files
     )
     listing = f"<ul>\n{links}\n</ul>" if files else "<p>No exports yet.</p>"
+    return _html_page("Exports", f"""<p><a href="/">Stock</a></p>\n{listing}""")
+
+
+def _html_page(title: str, body: str) -> str:
     return f"""<!doctype html>
 <html lang=en>
 <meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1">
-<title>Exports</title>
+<title>{title}</title>
+<style>
 {STYLE}
-<h1>Exports</h1>
-<p><a href="/">Stock</a></p>
-{listing}
+</style>
+<h1>{title}</h1>
+{body}
 """
 
 
