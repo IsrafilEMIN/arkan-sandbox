@@ -1,0 +1,157 @@
+# arkan-review: review each pull request push with arkan's code-review and
+# security-review skills, post the findings, and fail the `arkan-review`
+# check while an `important` or security finding is open.
+# copy this file to .github/workflows/arkan-review.yml. setup: ci/README.md in arkan.
+name: arkan-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# one review per pr at a time; a new push cancels the run on the old head.
+concurrency:
+  group: arkan-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  REVIEW_MODEL: claude-opus-5-5
+  MAX_TURNS: "40"
+  # a pr whose changed files all match this is docs-only and is not reviewed.
+  DOCS_ONLY_REGEX: '(\.(md|mdx|txt|rst)$|^docs/|^LICENSE$|^NOTICE$)'
+
+jobs:
+  arkan-review:
+    name: arkan-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the pr head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Decide whether to review
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          reason=""
+          if [ "$HEAD_REPO" != "$REPO" ]; then
+            reason="fork"
+            text="arkan-review skipped: this pr comes from a fork (\`$HEAD_REPO\`), and a fork's run gets no secrets. a person reviews it by hand."
+          else
+            files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+            other=$(printf '%s\n' "$files" | grep -Ev "$DOCS_ONLY_REGEX" || true)
+            if [ -n "$files" ] && [ -z "$other" ]; then
+              reason="docs-only"
+              text="arkan-review skipped: every changed file is docs (matches \`$DOCS_ONLY_REGEX\`), so no review ran."
+            fi
+          fi
+          if [ -z "$reason" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "::notice title=arkan-review skipped::$text"
+          marker="<!-- arkan-review:skip reason=$reason -->"
+          # one skip comment per pr and reason. a fork's token is read-only, so
+          # there the notice above is the message.
+          bodies=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[].body' 2>/dev/null || true)
+          if [[ "$bodies" != *"$marker"* ]]; then
+            gh api "repos/$REPO/issues/$PR/comments" -f body="$text
+          $marker" > /dev/null || echo "::warning::could not comment on the pr (read-only token)"
+          fi
+
+      - name: Review with arkan skills
+        id: review
+        if: steps.scope.outputs.skip != 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # or, billed per token: anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: |
+            You are the arkan-review ci reviewer for pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}. No person is watching this run: where a skill says to ask the user, take the default written here and go on.
+
+            The pr head ${{ github.event.pull_request.head.sha }} is checked out. The base is ${{ github.event.pull_request.base.sha }}.
+            The diff to review is `git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}`. This is the full pr diff on every push: the round marker that narrows a later push to its new commits is not built yet.
+
+            1. Run the `code-review` skill with the fixed point ${{ github.event.pull_request.base.sha }}. Find the spec as the skill says; if none is found, skip the Spec axis and note "no spec available" in the summary. Keep its verify pass and its tags.
+            2. Run the `security-review` skill. Use ${{ github.event.pull_request.base.sha }} wherever it says `origin/HEAD`.
+            3. Return the structured output, one entry per kept finding:
+               - a code-review finding: `source` "code-review", `tag` as the skill tagged it.
+               - a security-review finding: `source` "security-review", `tag` "important", `severity` as the skill rated it.
+               - `file` is relative to the repo root; `line` is a line number in the head version of that file, inside a changed hunk where the finding allows.
+               - `body` is one or two sentences: the defect and the fix.
+               - `summary` is one line: the count of each tag, and the commit you reviewed.
+
+            Leave the working tree as it is and post nothing to GitHub: the next step posts your findings and sets the check.
+          claude_args: |
+            --model ${{ env.REVIEW_MODEL }}
+            --max-turns ${{ env.MAX_TURNS }}
+            --allowedTools "Skill,Read,Glob,Grep,Task,Agent,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git rev-parse:*),Bash(git merge-base:*),Bash(git remote show:*)"
+            --json-schema '{"type":"object","properties":{"summary":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string","enum":["code-review","security-review"]},"tag":{"type":"string","enum":["important","nit","pre-existing"]},"severity":{"type":"string"},"file":{"type":"string"},"line":{"type":"integer"},"body":{"type":"string"}},"required":["source","tag","file","line","body"]}}},"required":["summary","findings"]}'
+
+      - name: Post findings and set the check
+        if: always() && steps.scope.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          REVIEW_OUTCOME: ${{ steps.review.outcome }}
+          FINDINGS_JSON: ${{ steps.review.outputs.structured_output }}
+          EXECUTION_FILE: ${{ steps.review.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
+        run: |
+          short=${HEAD_SHA:0:7}
+          if [ -z "$FINDINGS_JSON" ] || ! printf '%s' "$FINDINGS_JSON" | jq -e '.findings | type == "array"' > /dev/null; then
+            # the model's last result line says why (auth, quota, turn limit); keep it short.
+            cause=""
+            if [ -f "$EXECUTION_FILE" ]; then
+              cause=$(jq -r '[.[] | select(.type == "result")] | last | "\(.subtype // ""), turns \(.num_turns // "?"): \(.result // "" | tostring | .[0:300])"' "$EXECUTION_FILE" 2>/dev/null || true)
+            fi
+            text="arkan-review did not finish on \`$short\`: no findings were returned (review step: $REVIEW_OUTCOME; ${cause:-no result recorded}). The check stays red until a run finishes.
+          <!-- arkan-review head=$HEAD_SHA result=error -->"
+            gh api "repos/$REPO/issues/$PR/comments" -f body="$text" > /dev/null || true
+            echo "::error title=arkan-review::no findings returned (review step: $REVIEW_OUTCOME; $cause)"
+            exit 1
+          fi
+          printf '%s' "$FINDINGS_JSON" > "$RUNNER_TEMP/findings.json"
+          cd "$RUNNER_TEMP"
+          # the pass/fail rule: any `important` finding, or any security-review finding, fails.
+          blocking=$(jq '[.findings[] | select(.tag == "important" or .source == "security-review")] | length' findings.json)
+          total=$(jq '.findings | length' findings.json)
+          if [ "$blocking" -gt 0 ]; then verdict="fail: $blocking of $total findings block"; else verdict="pass: $total findings, none block"; fi
+          body=$(jq -r --arg v "$verdict" --arg h "$short" --arg base "${BASE_SHA:0:7}" --arg head "$HEAD_SHA" '
+            "### arkan-review on `\($h)`: \($v)\n\n" +
+            "Reviewed `git diff \($base)...\($h)`, the full pr diff (a later push is not yet narrowed to its new commits).\n\n" +
+            .summary + "\n\n" +
+            ( .findings | map("- `\(.tag)` `\(.file):\(.line)` (\(.source)\(if .severity then ", " + .severity else "" end)): \(.body)") | join("\n") ) +
+            "\n\n<!-- arkan-review head=\($head) -->"' findings.json)
+          jq --arg body "$body" --arg sha "$HEAD_SHA" '{
+            commit_id: $sha, event: "COMMENT", body: $body,
+            comments: [.findings[] | {path: .file, line: .line, side: "RIGHT",
+              body: "`\(.tag)` `\(.file):\(.line)` (\(.source)): \(.body)"}]
+          }' findings.json > review.json
+          # inline comments need lines inside the diff; if github refuses one, post the review without them.
+          if ! gh api "repos/$REPO/pulls/$PR/reviews" --input review.json > /dev/null; then
+            jq '.comments = []' review.json > review-plain.json
+            gh api "repos/$REPO/pulls/$PR/reviews" --input review-plain.json > /dev/null
+          fi
+          echo "$verdict"
+          if [ "$blocking" -gt 0 ]; then
+            echo "::error title=arkan-review::$verdict"
+            exit 1
+          fi

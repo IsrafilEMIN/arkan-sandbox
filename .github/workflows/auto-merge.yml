@@ -1,0 +1,38 @@
+name: auto-merge
+# merges a pr once every check on its head commit passed and a review on that
+# same commit starts with PASS (the verifier's verdict). agents never merge;
+# this workflow does, under the repo's branch rules.
+on:
+  pull_request_review:
+    types: [submitted]
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+jobs:
+  merge:
+    if: startsWith(github.event.review.body, 'PASS')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD: ${{ github.event.pull_request.head.sha }}
+      REVIEWED: ${{ github.event.review.commit_id }}
+    steps:
+      - name: the verdict covers the current head
+        run: |
+          [ "$REVIEWED" = "$HEAD" ] || { echo "verdict is for $REVIEWED, head is $HEAD"; exit 1; }
+      - name: wait for every other check on the head
+        run: |
+          for i in $(seq 1 60); do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD/check-runs" --jq '[.check_runs[] | select(.name != "merge")]')
+            total=$(jq length <<<"$runs")
+            open=$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")
+            bad=$(jq -r '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped") | .name] | join(", ")' <<<"$runs")
+            [ -z "$bad" ] || { echo "not merging: failed checks: $bad"; exit 1; }
+            [ "$total" -gt 0 ] && [ "$open" -eq 0 ] && { echo "all $total checks passed"; exit 0; }
+            sleep 20
+          done
+          echo "not merging: checks still running after 20 minutes"; exit 1
+      - name: merge
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD"
