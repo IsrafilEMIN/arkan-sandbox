@@ -22,6 +22,9 @@ env:
   MAX_TURNS: "40"
   # a pr whose changed files all match this is docs-only and is not reviewed.
   DOCS_ONLY_REGEX: '(\.(md|mdx|txt|rst)$|^docs/|^LICENSE$|^NOTICE$)'
+  # files that steer the agent or its reviewer are never docs, even as markdown:
+  # a pr that touches one is always reviewed.
+  NEVER_DOCS_REGEX: '(^\.claude/|^\.scratch/|^\.github/|(^|/)(AGENTS|CLAUDE|CODING_STANDARDS|REVIEW)\.md$|(^|/)SKILL\.md$)'
 
 jobs:
   arkan-review:
@@ -52,7 +55,8 @@ jobs:
           else
             files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
             other=$(printf '%s\n' "$files" | grep -Ev "$DOCS_ONLY_REGEX" || true)
-            if [ -n "$files" ] && [ -z "$other" ]; then
+            steering=$(printf '%s\n' "$files" | grep -E "$NEVER_DOCS_REGEX" || true)
+            if [ -n "$files" ] && [ -z "$other" ] && [ -z "$steering" ]; then
               reason="docs-only"
               text="arkan-review skipped: every changed file is docs (matches \`$DOCS_ONLY_REGEX\`), so no review ran."
             fi
