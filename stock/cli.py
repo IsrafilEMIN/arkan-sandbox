@@ -39,6 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     remove.add_argument("n", type=_whole_number)
 
     sub.add_parser("list", help="show every item")
+    low = sub.add_parser("low", help="show the items running low")
+    low.add_argument(
+        "--at",
+        type=_whole_number,
+        default=5,
+        help="show items with this many or fewer on hand (default: 5)",
+    )
     sub.add_parser("value", help="show the total value of the stock on hand")
     sub.add_parser("export", help="write the inventory to exports/stock-<date>.csv")
 
@@ -82,6 +89,13 @@ def _run(args: argparse.Namespace, inventory: Inventory) -> bool:
     if args.command == "list":
         _print_list(inventory)
         return False
+    if args.command == "low":
+        items = inventory.running_low(args.at)
+        if items:
+            _print_rows(items)
+        else:
+            print("nothing is running low")
+        return False
     if args.command == "value":
         print(format_money(inventory.total_value_cents()))
         return False
@@ -111,6 +125,10 @@ def _print_list(inventory: Inventory) -> None:
     if not items:
         print("no items")
         return
+    _print_rows(items)
+
+
+def _print_rows(items: list[Item]) -> None:
     width = max(len(item.sku) for item in items)
     for item in items:
         price = format_money(item.price_cents)
