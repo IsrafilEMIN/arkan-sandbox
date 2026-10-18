@@ -13,9 +13,22 @@ from stock.money import format_money, parse_money
 
 DEFAULT_FILE = "inventory.json"
 
+EXAMPLES = """examples:
+  stock add PEN-01 "blue pen" 10 1.20   add 10 blue pens at $1.20 each
+  stock receive PEN-01 24               24 more arrived
+  stock remove PEN-01 3                 3 sold
+  stock list                            every item, sorted by sku
+  stock value                           what the stock on hand is worth
+"""
+
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="stock", description="Keep track of the stock on hand.")
+    parser = argparse.ArgumentParser(
+        prog="stock",
+        description="Keep track of the stock on hand.",
+        epilog=EXAMPLES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "--file",
         type=Path,
