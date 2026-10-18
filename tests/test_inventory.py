@@ -49,7 +49,7 @@ class InventoryTest(unittest.TestCase):
         with self.assertRaises(InvalidCutoff) as caught:
             sample().running_low(-1)
         self.assertEqual(
-            str(caught.exception), "the low stock cutoff must be 0 or more, got -1"
+            str(caught.exception), "the running low cutoff must be 0 or more, got -1"
         )
 
     def test_rejects_a_duplicate_sku(self):

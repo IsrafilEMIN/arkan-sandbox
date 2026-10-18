@@ -39,5 +39,5 @@ class InvalidPrice(StockError):
 
 class InvalidCutoff(StockError):
     def __init__(self, cutoff: int) -> None:
-        super().__init__(f"the low stock cutoff must be 0 or more, got {cutoff}")
+        super().__init__(f"the running low cutoff must be 0 or more, got {cutoff}")
         self.cutoff = cutoff
