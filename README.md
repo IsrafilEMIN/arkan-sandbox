@@ -17,6 +17,7 @@ python3 -m stock add PEN-01 "blue pen" 10 1.20
 python3 -m stock receive PEN-01 24
 python3 -m stock remove PEN-01 3
 python3 -m stock list
+python3 -m stock low --at 10
 python3 -m stock value
 python3 -m stock export
 python3 -m stock serve
