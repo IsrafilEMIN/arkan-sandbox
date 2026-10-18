@@ -1,7 +1,7 @@
 # 01: Stock value does not add up
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 1
 **Blocked by:** None (can start immediately)
 
@@ -17,5 +17,9 @@ That prints `$3.5`. By hand it's 5 cents plus $3.00, so $3.05. The export of the
 
 **Touches:** the stock package.
 
-- [ ] `stock value` prints `$3.05` for the two items above
-- [ ] no other command shows a wrong amount of money
+- [x] `stock value` prints `$3.05` for the two items above
+- [x] no other command shows a wrong amount of money
+
+## Comments
+
+Fixed on branch `fix/value-report-01`. `format_money` did not pad the cents, so 305 cents printed as `$3.5`. Every place that shows a price or a value went through it: `stock add`, `stock list`, `stock value` and the tablet page. The CSV export uses `plain_money`, which already padded, so it was right. Saved prices were never wrong, and reading a price (`parse_money`) was correct, so no data needs fixing.

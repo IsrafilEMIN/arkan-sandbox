@@ -38,6 +38,11 @@ class CliTest(unittest.TestCase):
         self.run_stock("add", "BOOK-A5", "a5 notebook", "2", "3.55")
         self.assertEqual(self.run_stock("value")[1], "$10.70\n")
 
+    def test_value_shows_cents_under_ten_with_a_leading_zero(self):
+        self.run_stock("add", "STK-01", "star stickers", "1", "0.05")
+        self.run_stock("add", "PEN-01", "blue pen", "3", "1.00")
+        self.assertEqual(self.run_stock("value")[1], "$3.05\n")
+
     def test_an_error_prints_a_message_and_exits_1(self):
         code, out, err = self.run_stock("remove", "NOPE", "1")
         self.assertEqual((code, out), (1, ""))
