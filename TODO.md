@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 03: A malformed inventory file crashes with a traceback #file-checks #needs-triage
+  `.scratch/file-checks/issues/03-a-malformed-inventory-file-crashes.md` · blocked by: none
+
 ## Todo
 
 - [ ] 01: Print a count sheet #stocktake #ready-for-agent
