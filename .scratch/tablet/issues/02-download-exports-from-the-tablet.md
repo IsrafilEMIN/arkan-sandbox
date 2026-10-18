@@ -1,7 +1,7 @@
 # 02: Download exports from the tablet
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 2
 **Blocked by:** None (can start immediately)
 
@@ -9,6 +9,10 @@
 
 **Touches:** the web module.
 
-- [ ] the home page links to `/exports`
-- [ ] `/exports` lists the files in the exports folder, newest first, each one a link
-- [ ] `/exports/<file name>` downloads that file as CSV, saved under its own name
+- [x] the home page links to `/exports`
+- [x] `/exports` lists the files in the exports folder, newest first, each one a link
+- [x] `/exports/<file name>` downloads that file as CSV, saved under its own name
+
+## Comments
+
+Done on branch `tablet-02-security-b`. The page lists only regular files directly in the exports folder. It leaves out subfolders, links (a link could point anywhere on the computer) and names that are not valid text. A download is looked up by name in that list, so a request can reach no other file. Anything put in the exports folder can be downloaded by anyone on the shop wifi. The DNS rebinding risk from the security review is ticket 04.

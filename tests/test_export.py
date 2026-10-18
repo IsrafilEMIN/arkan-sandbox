@@ -1,5 +1,6 @@
 import csv
 import datetime
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,6 +35,35 @@ class ExportTest(unittest.TestCase):
                 ["PEN-01", "blue pen", "10", "1.20", "12.00"],
             ],
         )
+
+    def test_list_exports_is_empty_before_the_first_export(self):
+        self.assertEqual(export.list_exports(self.inventory_file), [])
+
+    def test_list_exports_puts_the_newest_file_first(self):
+        folder = export.exports_dir(self.inventory_file)
+        folder.mkdir()
+        for name, mtime in [("old.csv", 1000), ("new.csv", 3000), ("mid.csv", 2000)]:
+            (folder / name).write_text("sku\n")
+            os.utime(folder / name, (mtime, mtime))
+        names = [path.name for path in export.list_exports(self.inventory_file)]
+        self.assertEqual(names, ["new.csv", "mid.csv", "old.csv"])
+
+    def test_list_exports_skips_folders_and_links(self):
+        folder = export.exports_dir(self.inventory_file)
+        folder.mkdir()
+        (folder / "stock-2026-10-18.csv").write_text("sku\n")
+        (folder / "old").mkdir()
+        (folder / "secret.csv").symlink_to(self.inventory_file)
+        names = [path.name for path in export.list_exports(self.inventory_file)]
+        self.assertEqual(names, ["stock-2026-10-18.csv"])
+
+    def test_list_exports_skips_a_name_that_is_not_text(self):
+        folder = export.exports_dir(self.inventory_file)
+        folder.mkdir()
+        (folder / "stock-2026-10-18.csv").write_text("sku\n")
+        (folder / os.fsdecode(b"bad\xff.csv")).write_text("sku\n")
+        names = [path.name for path in export.list_exports(self.inventory_file)]
+        self.assertEqual(names, ["stock-2026-10-18.csv"])
 
 
 if __name__ == "__main__":
