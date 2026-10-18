@@ -1,6 +1,12 @@
 import unittest
 
-from stock.errors import DuplicateSku, InvalidQuantity, NotEnoughStock, UnknownSku
+from stock.errors import (
+    DuplicateSku,
+    InvalidCutoff,
+    InvalidQuantity,
+    NotEnoughStock,
+    UnknownSku,
+)
 from stock.inventory import Inventory, Item
 
 
@@ -16,6 +22,35 @@ def sample() -> Inventory:
 class InventoryTest(unittest.TestCase):
     def test_lists_items_sorted_by_sku(self):
         self.assertEqual([item.sku for item in sample().items()], ["BOOK-A5", "PEN-01"])
+
+    def test_running_low_includes_items_at_the_cutoff(self):
+        inventory = sample()
+        self.assertEqual([item.sku for item in inventory.running_low(4)], ["BOOK-A5"])
+        self.assertEqual([item.sku for item in inventory.running_low(3)], [])
+
+    def test_running_low_lists_fewest_first_then_by_sku(self):
+        inventory = Inventory(
+            [
+                Item("PEN-01", "blue pen", 5, 120),
+                Item("TAPE-1", "tape", 2, 200),
+                Item("BOOK-A5", "a5 notebook", 5, 350),
+            ]
+        )
+        self.assertEqual(
+            [item.sku for item in inventory.running_low(5)], ["TAPE-1", "BOOK-A5", "PEN-01"]
+        )
+
+    def test_running_low_allows_a_cutoff_of_zero(self):
+        inventory = sample()
+        inventory.remove("BOOK-A5", 4)
+        self.assertEqual([item.sku for item in inventory.running_low(0)], ["BOOK-A5"])
+
+    def test_running_low_refuses_a_negative_cutoff(self):
+        with self.assertRaises(InvalidCutoff) as caught:
+            sample().running_low(-1)
+        self.assertEqual(
+            str(caught.exception), "the low stock cutoff must be 0 or more, got -1"
+        )
 
     def test_rejects_a_duplicate_sku(self):
         inventory = sample()
