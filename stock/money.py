@@ -4,7 +4,7 @@ import re
 
 from stock.errors import InvalidPrice
 
-_PRICE = re.compile(r"\d+(\.\d{1,2})?")
+_PRICE = re.compile(r"(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?")
 
 
 def format_money(cents: int) -> str:
@@ -22,9 +22,9 @@ def plain_money(cents: int) -> str:
 
 
 def parse_money(text: str) -> int:
-    """Parse "12.50", "$12.50", "12" or "0.5" into integer cents."""
+    """Parse "12.50", "$12.50", "1,250.00", "12" or "0.5" into integer cents."""
     cleaned = text.strip().removeprefix("$")
     if not _PRICE.fullmatch(cleaned):
         raise InvalidPrice(text)
-    dollars, _, frac = cleaned.partition(".")
-    return int(dollars) * 100 + int(frac.ljust(2, "0"))
+    dollars, _, frac = cleaned.replace(",", "").partition(".")
+    return int(dollars) * 100 + int(frac or "0")
