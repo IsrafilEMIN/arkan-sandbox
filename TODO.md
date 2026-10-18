@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 02: Format money through one rule #value-report #needs-triage
+  `.scratch/value-report/issues/02-format-money-through-one-rule.md` · blocked by: none
+
 ## Todo
 
 - [ ] 01: Print a count sheet #stocktake #ready-for-agent
