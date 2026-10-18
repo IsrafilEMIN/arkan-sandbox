@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 02: Explain a missing folder #file-checks #needs-triage
+  `.scratch/file-checks/issues/02-explain-a-missing-folder.md` · blocked by: none
+
 ## Todo
 
 - [ ] 01: Print a count sheet #stocktake #ready-for-agent
@@ -15,9 +18,6 @@
 
 - [ ] 02: Set an item's quantity #stocktake #ready-for-agent
   `.scratch/stocktake/issues/02-set-an-items-quantity.md` · blocked by: none
-
-- [ ] 01: Stock value does not add up #value-report #ready-for-agent
-  `.scratch/value-report/issues/01-stock-value-does-not-add-up.md` · blocked by: none
 
 - [ ] 01: Warn about negative quantities #file-checks #ready-for-agent
   `.scratch/file-checks/issues/01-warn-about-negative-quantities.md` · blocked by: none
@@ -41,6 +41,9 @@
   `.scratch/categories/issues/01-give-items-a-category.md` · blocked by: none
 
 ## Done
+
+- [x] 01: Stock value does not add up #value-report #ready-for-agent
+  `.scratch/value-report/issues/01-stock-value-does-not-add-up.md` · blocked by: none
 
 - [x] 01: Export the inventory to CSV #export #ready-for-agent
   `.scratch/export/issues/01-export-the-inventory-to-csv.md` · blocked by: none
