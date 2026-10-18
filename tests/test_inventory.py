@@ -22,6 +22,22 @@ class InventoryTest(unittest.TestCase):
         with self.assertRaises(DuplicateSku):
             inventory.add_item(Item("PEN-01", "red pen", 1, 120))
 
+    def test_value_by_prefix_adds_the_matching_items(self):
+        inventory = Inventory(
+            [
+                Item("PEN-01", "blue pen", 1, 120),
+                Item("PEN-02", "red pen", 1, 80),
+                Item("BOOK-A5", "a5 notebook", 1, 350),
+            ]
+        )
+        self.assertEqual(inventory.value_by_prefix_cents("PEN-"), 200)
+
+    def test_write_off_sets_the_quantity_to_zero(self):
+        inventory = sample()
+        inventory.write_off(["PEN-01"])
+        self.assertEqual(inventory.get("PEN-01").qty, 0)
+        self.assertEqual(inventory.get("BOOK-A5").qty, 4)
+
     def test_receive_adds_to_the_quantity(self):
         self.assertEqual(sample().receive("PEN-01", 5).qty, 15)
 

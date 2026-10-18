@@ -55,6 +55,18 @@ class Inventory:
     def total_value_cents(self) -> int:
         return sum(item.value_cents for item in self._items.values())
 
+    def value_by_prefix_cents(self, prefix: str) -> int:
+        """The stock value of the items whose sku starts with `prefix`."""
+        return sum(
+            item.price_cents for item in self._items.values() if item.sku.startswith(prefix)
+        )
+
+    def write_off(self, skus: list[str]) -> None:
+        """Set the qty of each listed item to 0."""
+        for sku in skus:
+            if sku in self._items:
+                self._items[sku].qty = 0
+
 
 def _require_positive(n: int) -> None:
     if n <= 0:
