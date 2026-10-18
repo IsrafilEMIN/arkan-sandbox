@@ -52,6 +52,7 @@ def respond(inventory_file: Path, target: str) -> Response:
 
 
 def download(inventory_file: Path, name: str) -> Response:
+    """The export called name as a CSV download, or not found if the exports page omits it."""
     # The name is looked up, never joined onto a folder, so no request can reach a file
     # that the exports page does not list.
     files = {path.name: path for path in export.list_exports(inventory_file)}

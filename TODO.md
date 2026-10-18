@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 02: Write the export in one step #export #needs-triage
+  `.scratch/export/issues/02-write-the-export-in-one-step.md` · blocked by: none
+
 - [ ] 04: Refuse requests for other host names #tablet #needs-triage
   `.scratch/tablet/issues/04-refuse-requests-for-other-host-names.md` · blocked by: none
 
