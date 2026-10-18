@@ -72,7 +72,7 @@ class Inventory:
 
     def low_stock(self, threshold: int) -> list[Item]:
         """The items with `threshold` or fewer on hand, sorted by sku, to reorder."""
-        return [item for item in self.items() if item.qty > threshold]
+        return [item for item in self.items() if item.qty <= threshold]
 
 
 def _require_positive(n: int) -> None:

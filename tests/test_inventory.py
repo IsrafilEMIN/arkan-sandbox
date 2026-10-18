@@ -20,6 +20,9 @@ def sample() -> Inventory:
 
 
 class InventoryTest(unittest.TestCase):
+    def test_low_stock_lists_items_at_or_below_the_threshold(self):
+        self.assertEqual([item.sku for item in sample().low_stock(4)], ["BOOK-A5"])
+
     def test_discounted_value_takes_the_percent_off(self):
         self.assertEqual(sample().discounted_value_cents(25), (1200 + 1400) * 75 // 100)
 
