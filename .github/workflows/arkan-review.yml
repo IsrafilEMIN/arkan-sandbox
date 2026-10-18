@@ -18,7 +18,7 @@ permissions:
   pull-requests: write
 
 env:
-  REVIEW_MODEL: claude-opus-5-5
+  REVIEW_MODEL: claude-sonnet-5-5
   MAX_TURNS: "40"
   # a pr whose changed files all match this is docs-only and is not reviewed.
   DOCS_ONLY_REGEX: '(\.(md|mdx|txt|rst)$|^docs/|^LICENSE$|^NOTICE$)'
