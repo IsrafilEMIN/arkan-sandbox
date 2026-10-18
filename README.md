@@ -6,6 +6,12 @@ Python 3.11 or later, standard library only. There is nothing to install.
 
 ## use
 
+The tickets and examples write `stock` for `python3 -m stock`. To type it that way too:
+
+```
+alias stock='python3 -m stock'
+```
+
 ```
 python3 -m stock add PEN-01 "blue pen" 10 1.20
 python3 -m stock receive PEN-01 24
