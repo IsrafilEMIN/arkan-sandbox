@@ -55,6 +55,10 @@ class Inventory:
     def total_value_cents(self) -> int:
         return sum(item.value_cents for item in self._items.values())
 
+    def discounted_value_cents(self, percent: int) -> int:
+        """The total value after taking `percent` percent off, e.g. 10 takes a tenth off."""
+        return self.total_value_cents() * percent // 100
+
 
 def _require_positive(n: int) -> None:
     if n <= 0:
