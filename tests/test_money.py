@@ -1,7 +1,7 @@
 import unittest
 
 from stock.errors import InvalidPrice
-from stock.money import format_money, parse_money
+from stock.money import format_money, parse_money, plain_money
 
 
 class FormatMoneyTest(unittest.TestCase):
@@ -11,6 +11,13 @@ class FormatMoneyTest(unittest.TestCase):
 
     def test_formats_a_negative_amount_with_the_sign_first(self):
         self.assertEqual(format_money(-250), "-$2.50")
+
+
+class PlainMoneyTest(unittest.TestCase):
+    def test_formats_a_plain_decimal_with_two_places(self):
+        self.assertEqual(plain_money(1205), "12.05")
+        self.assertEqual(plain_money(1200), "12.00")
+        self.assertEqual(plain_money(-5), "-0.05")
 
 
 class ParseMoneyTest(unittest.TestCase):

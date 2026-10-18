@@ -1,11 +1,12 @@
 """The `stock` command line: it reads the arguments and prints the results."""
 
 import argparse
+import datetime
 import os
 import sys
 from pathlib import Path
 
-from stock import store
+from stock import export, store
 from stock.errors import StockError
 from stock.inventory import Inventory, Item
 from stock.money import format_money, parse_money
@@ -39,11 +40,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("list", help="show every item")
     sub.add_parser("value", help="show the total value of the stock on hand")
+    sub.add_parser("export", help="write the inventory to exports/stock-<date>.csv")
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, today: datetime.date | None = None) -> int:
     args = build_parser().parse_args(argv)
+    args.today = today or datetime.date.today()
     try:
         inventory = store.load(args.file)
         changed = _run(args, inventory)
@@ -75,6 +78,11 @@ def _run(args: argparse.Namespace, inventory: Inventory) -> bool:
         return False
     if args.command == "value":
         print(format_money(inventory.total_value_cents()))
+        return False
+    if args.command == "export":
+        path = export.export_path(args.file, args.today)
+        export.write_csv(inventory, path)
+        print(path)
         return False
     raise AssertionError(f"unhandled command {args.command}")
 

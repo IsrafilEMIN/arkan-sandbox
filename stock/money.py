@@ -14,6 +14,13 @@ def format_money(cents: int) -> str:
     return f"{sign}${cents // 100}.{cents % 100}"
 
 
+def plain_money(cents: int) -> str:
+    """Format integer cents as a plain decimal for a spreadsheet, e.g. 1205 -> "12.05"."""
+    sign = "-" if cents < 0 else ""
+    cents = abs(cents)
+    return f"{sign}{cents // 100}.{cents % 100:02d}"
+
+
 def parse_money(text: str) -> int:
     """Parse "12.50", "$12.50", "12" or "0.5" into integer cents."""
     cleaned = text.strip().removeprefix("$")

@@ -12,10 +12,12 @@ python3 -m stock receive PEN-01 24
 python3 -m stock remove PEN-01 3
 python3 -m stock list
 python3 -m stock value
+python3 -m stock export
 ```
 
 The inventory lives in `inventory.json` in the current folder. Use `--file <path>`, or set
-`STOCK_FILE`, to keep it somewhere else.
+`STOCK_FILE`, to keep it somewhere else. `stock export` writes `exports/stock-<date>.csv` next to
+the inventory file.
 
 ## develop
 
