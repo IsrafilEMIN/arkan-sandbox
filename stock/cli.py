@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-from stock import export, store
+from stock import export, store, web
 from stock.errors import StockError
 from stock.inventory import Inventory, Item
 from stock.money import format_money, parse_money
@@ -41,11 +41,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("list", help="show every item")
     sub.add_parser("value", help="show the total value of the stock on hand")
     sub.add_parser("export", help="write the inventory to exports/stock-<date>.csv")
+
+    serve = sub.add_parser("serve", help="show the stock on the shop tablet")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--host", default="0.0.0.0", help="address to listen on (default: all)")
     return parser
 
 
 def main(argv: list[str] | None = None, today: datetime.date | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "serve":
+        return _serve(args)
     args.today = today or datetime.date.today()
     try:
         inventory = store.load(args.file)
@@ -85,6 +91,19 @@ def _run(args: argparse.Namespace, inventory: Inventory) -> bool:
         print(path)
         return False
     raise AssertionError(f"unhandled command {args.command}")
+
+
+def _serve(args: argparse.Namespace) -> int:
+    server = web.make_server(args.file, args.host, args.port)
+    host, port = server.server_address[:2]
+    print(f"serving {args.file} on http://{host}:{port}/ (ctrl-c to stop)")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
 
 
 def _print_list(inventory: Inventory) -> None:

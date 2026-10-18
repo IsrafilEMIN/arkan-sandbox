@@ -13,11 +13,12 @@ python3 -m stock remove PEN-01 3
 python3 -m stock list
 python3 -m stock value
 python3 -m stock export
+python3 -m stock serve
 ```
 
 The inventory lives in `inventory.json` in the current folder. Use `--file <path>`, or set
 `STOCK_FILE`, to keep it somewhere else. `stock export` writes `exports/stock-<date>.csv` next to
-the inventory file.
+the inventory file. `stock serve` shows the stock on the shop tablet at `http://<this computer>:8000/`.
 
 ## develop
 
