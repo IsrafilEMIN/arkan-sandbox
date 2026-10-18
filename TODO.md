@@ -2,7 +2,19 @@
 
 ## Backlog
 
+- [ ] Stocktake #stocktake #spec
+  `.scratch/stocktake/spec.md` · blocked by: none
+
+- [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
+  `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
+
 ## Todo
+
+- [ ] 01: Print a count sheet #stocktake #ready-for-agent
+  `.scratch/stocktake/issues/01-print-a-count-sheet.md` · blocked by: none
+
+- [ ] 02: Set an item's quantity #stocktake #ready-for-agent
+  `.scratch/stocktake/issues/02-set-an-items-quantity.md` · blocked by: none
 
 - [ ] 01: Stock value does not add up #value-report #ready-for-agent
   `.scratch/value-report/issues/01-stock-value-does-not-add-up.md` · blocked by: none
@@ -15,6 +27,9 @@
 
 - [ ] 01: Match SKUs however they are typed #sku-matching #ready-for-agent
   `.scratch/sku-matching/issues/01-match-skus-however-they-are-typed.md` · blocked by: none
+
+- [ ] 04: Flag big differences for a recount #stocktake #ready-for-human
+  `.scratch/stocktake/issues/04-flag-big-differences-for-a-recount.md` · blocked by: none
 
 - [ ] 02: Download exports from the tablet #tablet #ready-for-agent
   `.scratch/tablet/issues/02-download-exports-from-the-tablet.md` · blocked by: none
