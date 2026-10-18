@@ -1,7 +1,7 @@
 # 01: Show stock on the tablet
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 3
 **Blocked by:** None (can start immediately)
 
@@ -9,6 +9,6 @@
 
 **Touches:** the stock package (a new web module and the command line).
 
-- [ ] `stock serve` serves the item table at `/` and the items as JSON at `/items.json`
-- [ ] item names show exactly as typed, even with `<` or `&` in them
-- [ ] any other path is a 404; any method but GET is refused
+- [x] `stock serve` serves the item table at `/` and the items as JSON at `/items.json`
+- [x] item names show exactly as typed, even with `<` or `&` in them
+- [x] any other path is a 404; any method but GET is refused

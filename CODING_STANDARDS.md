@@ -4,7 +4,7 @@
 
 ## Structure
 
-- **Only the front ends talk to people.** `stock/cli.py` (the terminal) is the only module that prints. The core modules (`inventory`, `money`, `store`, `errors`) never call `print`, never write to `sys.stdout` or `sys.stderr`, and never use `warnings` or `logging`. They return values or raise a `StockError`, and the front end decides what to show.
+- **Only the front ends talk to people.** The front ends are `stock/cli.py` (the terminal) and `stock/web.py` (the tablet). The core modules (`inventory`, `money`, `store`, `export`, `errors`) never call `print`, never write to `sys.stdout` or `sys.stderr`, and never use `warnings` or `logging`. They return values or raise a `StockError`, and the front end decides what to show.
 - **Every error a user can cause is a `StockError`.** Add a subclass in `stock/errors.py` with a message a shop worker understands. Front ends catch `StockError` only; anything else is a bug and should crash loudly.
 - **Money is integer cents** (ADR 0001). Read it with `parse_money`, show it with `format_money`. Never use `float` for money, and never format it by hand.
 
