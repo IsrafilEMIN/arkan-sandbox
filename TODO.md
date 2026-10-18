@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 04: Refuse requests for other host names #tablet #needs-triage
+  `.scratch/tablet/issues/04-refuse-requests-for-other-host-names.md` · blocked by: none
+
 ## Todo
 
 - [ ] 01: Print a count sheet #stocktake #ready-for-agent
@@ -31,9 +34,6 @@
 - [ ] 04: Flag big differences for a recount #stocktake #ready-for-human
   `.scratch/stocktake/issues/04-flag-big-differences-for-a-recount.md` · blocked by: none
 
-- [ ] 02: Download exports from the tablet #tablet #ready-for-agent
-  `.scratch/tablet/issues/02-download-exports-from-the-tablet.md` · blocked by: none
-
 - [ ] 03: Group the tablet page by category #tablet #ready-for-agent
   `.scratch/tablet/issues/03-group-the-tablet-page-by-category.md` · blocked by: none
 
@@ -44,6 +44,9 @@
 
 - [x] 01: Export the inventory to CSV #export #ready-for-agent
   `.scratch/export/issues/01-export-the-inventory-to-csv.md` · blocked by: none
+
+- [x] 02: Download exports from the tablet #tablet #ready-for-agent
+  `.scratch/tablet/issues/02-download-exports-from-the-tablet.md` · blocked by: none
 
 - [x] 01: Show stock on the tablet #tablet #ready-for-agent
   `.scratch/tablet/issues/01-show-stock-on-the-tablet.md` · blocked by: none
