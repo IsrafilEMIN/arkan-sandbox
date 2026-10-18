@@ -71,7 +71,7 @@ class Inventory:
         return self.total_value_cents() * (100 - percent) // 100
 
     def low_stock(self, threshold: int) -> list[Item]:
-        """The items with `threshold` or fewer on hand, sorted by sku: the ones to reorder."""
+        """The items with `threshold` or fewer on hand, sorted by sku: the ones to order again."""
         return [item for item in self.items() if item.qty <= threshold]
 
 
