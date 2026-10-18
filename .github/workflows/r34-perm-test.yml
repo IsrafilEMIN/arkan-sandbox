@@ -1,0 +1,35 @@
+# r34 proof (b): run arkan-merge's permission step, extracted verbatim from
+# .github/workflows/arkan-merge.yml, against the real api with two logins.
+# a logic test, not a review from a live second account.
+name: r34-perm-test
+on: pull_request
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+jobs:
+  perm:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          yq '.jobs["arkan-merge"].steps[] | select(.name == "The reviewer has write access") | .run' .github/workflows/arkan-merge.yml > "$RUNNER_TEMP/step.sh"
+          echo "--- the step, as extracted:"; cat "$RUNNER_TEMP/step.sh"
+          fail=0
+          for login in octocat IsrafilEMIN; do
+            echo "--- REVIEWER=$login"
+            echo "raw: $(gh api "repos/$GITHUB_REPOSITORY/collaborators/$login/permission" --jq '{permission,role_name}' 2>&1)"
+            set +e
+            REVIEWER=$login bash --noprofile --norc -eo pipefail "$RUNNER_TEMP/step.sh"
+            rc=$?
+            set -e
+            echo "REVIEWER=$login exit=$rc"
+            case "$login:$rc" in
+              octocat:0) echo "::error::octocat was let through"; fail=1 ;;
+              IsrafilEMIN:0) ;;
+              IsrafilEMIN:*) echo "::error::the owner was refused"; fail=1 ;;
+            esac
+          done
+          exit $fail
