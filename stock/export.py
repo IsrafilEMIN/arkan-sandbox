@@ -19,6 +19,16 @@ def export_path(inventory_file: Path, day: datetime.date) -> Path:
     return exports_dir(inventory_file) / f"stock-{day.isoformat()}.csv"
 
 
+def list_exports(inventory_file: Path) -> list[Path]:
+    """The files in the exports folder, newest first. Folders and links are left out."""
+    folder = exports_dir(inventory_file)
+    if not folder.is_dir():
+        return []
+    # A link could point anywhere on the computer, and the tablet serves what this lists.
+    files = [path for path in folder.iterdir() if path.is_file() and not path.is_symlink()]
+    return sorted(files, key=lambda path: (path.stat().st_mtime, path.name), reverse=True)
+
+
 def write_csv(inventory: Inventory, path: Path) -> None:
     """Write one row per item, sorted by sku, replacing any file already at path."""
     path.parent.mkdir(parents=True, exist_ok=True)
