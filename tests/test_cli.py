@@ -60,6 +60,34 @@ class CliTest(unittest.TestCase):
     def test_list_with_no_items(self):
         self.assertEqual(self.run_stock("list")[1], "no items\n")
 
+    def test_low_lists_items_with_5_or_fewer_fewest_first(self):
+        self.run_stock("add", "PEN-01", "blue pen", "5", "1.20")
+        self.run_stock("add", "TAPE-1", "tape", "2", "1.99")
+        self.run_stock("add", "CLIP-9", "paper clips", "6", "0.50")
+        code, out, _ = self.run_stock("low")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            out, "TAPE-1      2       $1.99  tape\nPEN-01      5       $1.20  blue pen\n"
+        )
+
+    def test_low_at_sets_the_cutoff(self):
+        self.run_stock("add", "PEN-01", "blue pen", "5", "1.20")
+        self.run_stock("add", "CLIP-9", "paper clips", "10", "0.50")
+        self.run_stock("add", "TAPE-1", "tape", "11", "1.99")
+        out = self.run_stock("low", "--at", "10")[1]
+        self.assertEqual(
+            out, "PEN-01      5       $1.20  blue pen\nCLIP-9     10       $0.50  paper clips\n"
+        )
+
+    def test_low_says_so_when_nothing_is_running_low(self):
+        self.run_stock("add", "PEN-01", "blue pen", "1", "1.20")
+        self.assertEqual(self.run_stock("low", "--at", "0")[1], "nothing is running low\n")
+
+    def test_low_refuses_a_negative_cutoff(self):
+        code, out, err = self.run_stock("low", "--at", "-1")
+        self.assertEqual((code, out), (1, ""))
+        self.assertEqual(err, "stock: the low stock cutoff must be 0 or more, got -1\n")
+
 
 if __name__ == "__main__":
     unittest.main()
