@@ -1,6 +1,12 @@
 import unittest
 
-from stock.errors import DuplicateSku, InvalidQuantity, NotEnoughStock, UnknownSku
+from stock.errors import (
+    DuplicateSku,
+    InvalidCutoff,
+    InvalidQuantity,
+    NotEnoughStock,
+    UnknownSku,
+)
 from stock.inventory import Inventory, Item
 
 
@@ -47,6 +53,29 @@ class InventoryTest(unittest.TestCase):
 
     def test_total_value_is_quantity_times_price(self):
         self.assertEqual(sample().total_value_cents(), 10 * 120 + 4 * 350)
+
+    def test_running_low_lists_items_at_or_below_the_cutoff_fewest_first(self):
+        inventory = Inventory(
+            [
+                Item("PEN-01", "blue pen", 10, 120),
+                Item("TAPE-02", "clear tape", 3, 150),
+                Item("BOOK-A5", "a5 notebook", 5, 350),
+                Item("CLIP-01", "paper clips", 3, 50),
+                Item("GLUE-01", "glue stick", 0, 90),
+            ]
+        )
+        self.assertEqual(
+            [item.sku for item in inventory.running_low(5)],
+            ["GLUE-01", "CLIP-01", "TAPE-02", "BOOK-A5"],
+        )
+
+    def test_running_low_at_zero_lists_only_items_with_none_on_hand(self):
+        inventory = Inventory([Item("PEN-01", "blue pen", 1, 120), Item("GLUE-01", "glue", 0, 90)])
+        self.assertEqual([item.sku for item in inventory.running_low(0)], ["GLUE-01"])
+
+    def test_running_low_refuses_a_negative_cutoff(self):
+        with self.assertRaises(InvalidCutoff):
+            sample().running_low(-1)
 
 
 if __name__ == "__main__":

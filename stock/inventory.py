@@ -2,7 +2,13 @@
 
 from dataclasses import dataclass
 
-from stock.errors import DuplicateSku, InvalidQuantity, NotEnoughStock, UnknownSku
+from stock.errors import (
+    DuplicateSku,
+    InvalidCutoff,
+    InvalidQuantity,
+    NotEnoughStock,
+    UnknownSku,
+)
 
 
 @dataclass
@@ -51,6 +57,13 @@ class Inventory:
             raise NotEnoughStock(sku, item.qty, n)
         item.qty -= n
         return item
+
+    def running_low(self, at: int) -> list[Item]:
+        """The items with `at` or fewer on hand, fewest first, ties by sku."""
+        if at < 0:
+            raise InvalidCutoff(at)
+        low = [item for item in self._items.values() if item.qty <= at]
+        return sorted(low, key=lambda item: (item.qty, item.sku))
 
     def total_value_cents(self) -> int:
         return sum(item.value_cents for item in self._items.values())

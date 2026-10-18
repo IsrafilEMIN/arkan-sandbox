@@ -31,6 +31,12 @@ class InvalidQuantity(StockError):
         self.n = n
 
 
+class InvalidCutoff(StockError):
+    def __init__(self, at: int) -> None:
+        super().__init__(f"the running low cutoff must be zero or more, got {at}")
+        self.at = at
+
+
 class InvalidPrice(StockError):
     def __init__(self, text: str) -> None:
         super().__init__(f"cannot read price {text!r}, use a form like 2.50")
