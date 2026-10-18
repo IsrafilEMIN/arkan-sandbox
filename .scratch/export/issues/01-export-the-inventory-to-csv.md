@@ -1,7 +1,7 @@
 # 01: Export the inventory to CSV
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 2
 **Blocked by:** None (can start immediately)
 
@@ -9,6 +9,6 @@
 
 **Touches:** the stock package (a new export module and the command line).
 
-- [ ] `stock export` writes `exports/stock-<date>.csv` next to the inventory file and prints the path
-- [ ] the CSV has a header row and one row per item, sorted by sku
-- [ ] prices and values are plain decimal numbers with two places
+- [x] `stock export` writes `exports/stock-<date>.csv` next to the inventory file and prints the path
+- [x] the CSV has a header row and one row per item, sorted by sku
+- [x] prices and values are plain decimal numbers with two places

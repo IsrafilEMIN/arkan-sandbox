@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import io
 import tempfile
 import unittest
@@ -18,7 +19,7 @@ class CliTest(unittest.TestCase):
     def run_stock(self, *args: str) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = main(["--file", self.file, *args])
+            code = main(["--file", self.file, *args], today=datetime.date(2026, 10, 18))
         return code, out.getvalue(), err.getvalue()
 
     def test_add_then_list(self):
@@ -41,6 +42,13 @@ class CliTest(unittest.TestCase):
         code, out, err = self.run_stock("remove", "NOPE", "1")
         self.assertEqual((code, out), (1, ""))
         self.assertEqual(err, "stock: no item with sku NOPE\n")
+
+    def test_export_prints_the_path_it_wrote(self):
+        self.run_stock("add", "PEN-01", "blue pen", "10", "1.20")
+        code, out, _ = self.run_stock("export")
+        expected = Path(self.dir.name) / "exports" / "stock-2026-10-18.csv"
+        self.assertEqual((code, out), (0, f"{expected}\n"))
+        self.assertTrue(expected.is_file())
 
     def test_list_with_no_items(self):
         self.assertEqual(self.run_stock("list")[1], "no items\n")
