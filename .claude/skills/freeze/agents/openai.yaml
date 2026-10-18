@@ -1,0 +1,5 @@
+interface:
+  display_name: "Freeze"
+  short_description: "Lock edits to one directory"
+policy:
+  allow_implicit_invocation: false

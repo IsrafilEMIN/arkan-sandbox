@@ -1,0 +1,3 @@
+interface:
+  display_name: "Good CSS"
+  short_description: "Modern CSS in place of breakpoints and wrappers"

@@ -1,0 +1,5 @@
+hooks:
+  pre_tool_call:
+    - matcher: "terminal|write_file|patch"
+      command: "~/.agents/skills/freeze/scripts/freeze-guard.sh hook"
+      timeout: 10

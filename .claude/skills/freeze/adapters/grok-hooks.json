@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|search_replace|run_terminal_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/skills/freeze/scripts/freeze-guard.sh\" hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

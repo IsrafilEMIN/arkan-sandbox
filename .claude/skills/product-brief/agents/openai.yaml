@@ -1,0 +1,5 @@
+interface:
+  display_name: "Product Brief"
+  short_description: "Write, review or trim a product brief"
+policy:
+  allow_implicit_invocation: false
