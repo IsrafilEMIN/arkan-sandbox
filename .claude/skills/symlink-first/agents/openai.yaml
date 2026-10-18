@@ -1,0 +1,3 @@
+interface:
+  display_name: "Symlink First"
+  short_description: "One canonical copy, symlinks everywhere else"

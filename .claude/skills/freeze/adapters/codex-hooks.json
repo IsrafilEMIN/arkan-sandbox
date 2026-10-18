@@ -1,0 +1,18 @@
+{
+  "description": "freeze guard: block writes outside the frozen directory",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/skills/freeze/scripts/freeze-guard.sh\" hook",
+            "timeout": 10,
+            "statusMessage": "freeze guard"
+          }
+        ]
+      }
+    ]
+  }
+}
