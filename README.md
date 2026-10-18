@@ -33,3 +33,5 @@ scripts/check.sh
 ```
 
 runs the tests, compiles every file and runs the style check. It prints `ok` when all pass.
+
+The tablet page and the terminal read the same stock file.
