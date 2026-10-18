@@ -50,11 +50,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None, today: datetime.date | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command == "serve":
-        return _serve(args)
     args.today = today or datetime.date.today()
     try:
         inventory = store.load(args.file)
+        for item in inventory.negative_items():
+            print(
+                f"stock: warning: {item.sku} has a negative quantity ({item.qty}),"
+                f" check {args.file}",
+                file=sys.stderr,
+            )
+        if args.command == "serve":
+            return _serve(args)
         changed = _run(args, inventory)
         if changed:
             store.save(inventory, args.file)

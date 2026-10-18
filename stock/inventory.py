@@ -38,6 +38,10 @@ class Inventory:
         """Every item, sorted by sku."""
         return sorted(self._items.values(), key=lambda item: item.sku)
 
+    def negative_items(self) -> list[Item]:
+        """Every item whose quantity is below zero, sorted by sku."""
+        return [item for item in self.items() if item.qty < 0]
+
     def receive(self, sku: str, n: int) -> Item:
         _require_positive(n)
         item = self.get(sku)

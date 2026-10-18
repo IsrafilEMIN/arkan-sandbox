@@ -48,6 +48,17 @@ class InventoryTest(unittest.TestCase):
     def test_total_value_is_quantity_times_price(self):
         self.assertEqual(sample().total_value_cents(), 10 * 120 + 4 * 350)
 
+    def test_negative_items_lists_only_items_below_zero_sorted_by_sku(self):
+        inventory = sample()
+        inventory.add_item(Item("TAPE-1", "tape", -1, 90))
+        inventory.add_item(Item("CLIP-9", "paper clip", -3, 5))
+        self.assertEqual([item.sku for item in inventory.negative_items()], ["CLIP-9", "TAPE-1"])
+
+    def test_negative_items_is_empty_when_every_quantity_is_zero_or_more(self):
+        inventory = sample()
+        inventory.add_item(Item("TAPE-1", "tape", 0, 90))
+        self.assertEqual(inventory.negative_items(), [])
+
 
 if __name__ == "__main__":
     unittest.main()
