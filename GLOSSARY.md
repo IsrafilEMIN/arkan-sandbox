@@ -40,6 +40,10 @@ _Avoid_: restock, add stock
 take stock out of an item's quantity: sold, used or broken.
 _Avoid_: sell, consume
 
+**Running low**:
+an item whose quantity is at or below the cutoff: 5 unless `stock low --at` names another.
+_Avoid_: low stock level, reorder point, threshold
+
 ## Relationships
 
 - An **inventory** holds many **items**, each named by one **SKU**.

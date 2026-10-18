@@ -127,9 +127,9 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def _print_items(items: list[Item], empty: str) -> None:
+def _print_items(items: list[Item], empty_message: str) -> None:
     if not items:
-        print(empty)
+        print(empty_message)
         return
     width = max(len(item.sku) for item in items)
     for item in items:
