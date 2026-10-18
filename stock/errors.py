@@ -32,9 +32,9 @@ class InvalidQuantity(StockError):
 
 
 class InvalidCutoff(StockError):
-    def __init__(self, at: int) -> None:
-        super().__init__(f"the running low cutoff must be zero or more, got {at}")
-        self.at = at
+    def __init__(self, cutoff: int) -> None:
+        super().__init__(f"the running low cutoff must be zero or more, got {cutoff}")
+        self.cutoff = cutoff
 
 
 class InvalidPrice(StockError):

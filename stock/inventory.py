@@ -10,6 +10,8 @@ from stock.errors import (
     UnknownSku,
 )
 
+DEFAULT_CUTOFF = 5
+
 
 @dataclass
 class Item:
@@ -58,11 +60,11 @@ class Inventory:
         item.qty -= n
         return item
 
-    def running_low(self, at: int) -> list[Item]:
-        """The items with `at` or fewer on hand, fewest first, ties by sku."""
-        if at < 0:
-            raise InvalidCutoff(at)
-        low = [item for item in self._items.values() if item.qty <= at]
+    def running_low(self, cutoff: int = DEFAULT_CUTOFF) -> list[Item]:
+        """The items with `cutoff` or fewer on hand, fewest first, ties by sku."""
+        if cutoff < 0:
+            raise InvalidCutoff(cutoff)
+        low = [item for item in self._items.values() if item.qty <= cutoff]
         return sorted(low, key=lambda item: (item.qty, item.sku))
 
     def total_value_cents(self) -> int:

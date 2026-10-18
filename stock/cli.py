@@ -8,7 +8,7 @@ from pathlib import Path
 
 from stock import export, store, web
 from stock.errors import StockError
-from stock.inventory import Inventory, Item
+from stock.inventory import DEFAULT_CUTOFF, Inventory, Item
 from stock.money import format_money, parse_money
 
 DEFAULT_FILE = "inventory.json"
@@ -43,8 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     low.add_argument(
         "--at",
         type=_whole_number,
-        default=5,
-        help="the most on hand that counts as running low (default: 5)",
+        default=DEFAULT_CUTOFF,
+        help=f"the most on hand that counts as running low (default: {DEFAULT_CUTOFF})",
     )
     sub.add_parser("value", help="show the total value of the stock on hand")
     sub.add_parser("export", help="write the inventory to exports/stock-<date>.csv")
