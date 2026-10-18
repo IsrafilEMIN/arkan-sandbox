@@ -1,7 +1,7 @@
 # 01: Warn about negative quantities
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 2
 **Blocked by:** None (can start immediately)
 
@@ -15,6 +15,6 @@ and then run as normal.
 
 **Touches:** loading the inventory file and the command line.
 
-- [ ] every command run on a file with a negative quantity prints one warning line per such sku to stderr, naming the file
-- [ ] the command still runs and exits as it would without the warning
-- [ ] a file with no negative quantities prints no warning
+- [x] every command run on a file with a negative quantity prints one warning line per such sku to stderr, naming the file
+- [x] the command still runs and exits as it would without the warning
+- [x] a file with no negative quantities prints no warning
