@@ -57,6 +57,14 @@ class ExportTest(unittest.TestCase):
         names = [path.name for path in export.list_exports(self.inventory_file)]
         self.assertEqual(names, ["stock-2026-10-18.csv"])
 
+    def test_list_exports_skips_a_name_that_is_not_text(self):
+        folder = export.exports_dir(self.inventory_file)
+        folder.mkdir()
+        (folder / "stock-2026-10-18.csv").write_text("sku\n")
+        (folder / os.fsdecode(b"bad\xff.csv")).write_text("sku\n")
+        names = [path.name for path in export.list_exports(self.inventory_file)]
+        self.assertEqual(names, ["stock-2026-10-18.csv"])
+
 
 if __name__ == "__main__":
     unittest.main()
