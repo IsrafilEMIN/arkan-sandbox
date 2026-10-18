@@ -50,6 +50,13 @@ class CliTest(unittest.TestCase):
         self.assertEqual((code, out), (0, f"{expected}\n"))
         self.assertTrue(expected.is_file())
 
+    def test_help_shows_examples(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as caught:
+            main(["--help"])
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn('stock add PEN-01 "blue pen" 10 1.20', out.getvalue())
+
     def test_list_with_no_items(self):
         self.assertEqual(self.run_stock("list")[1], "no items\n")
 
