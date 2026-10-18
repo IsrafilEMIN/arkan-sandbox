@@ -8,7 +8,7 @@ from pathlib import Path
 
 from stock import export, store, web
 from stock.errors import StockError
-from stock.inventory import Inventory, Item
+from stock.inventory import DEFAULT_CUTOFF, Inventory, Item
 from stock.money import format_money, parse_money
 
 DEFAULT_FILE = "inventory.json"
@@ -39,6 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     remove.add_argument("n", type=_whole_number)
 
     sub.add_parser("list", help="show every item")
+    low = sub.add_parser("low", help="show the items running low, fewest on hand first")
+    low.add_argument(
+        "--at",
+        type=_whole_number,
+        default=DEFAULT_CUTOFF,
+        help=f"the most on hand that counts as running low (default: {DEFAULT_CUTOFF})",
+    )
     sub.add_parser("value", help="show the total value of the stock on hand")
     sub.add_parser("export", help="write the inventory to exports/stock-<date>.csv")
 
@@ -80,7 +87,10 @@ def _run(args: argparse.Namespace, inventory: Inventory) -> bool:
         print(f"{item.sku}: {item.qty} on hand")
         return True
     if args.command == "list":
-        _print_list(inventory)
+        _print_items(inventory.items(), empty="no items")
+        return False
+    if args.command == "low":
+        _print_items(inventory.running_low(args.at), empty="nothing is running low")
         return False
     if args.command == "value":
         print(format_money(inventory.total_value_cents()))
@@ -106,10 +116,9 @@ def _serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def _print_list(inventory: Inventory) -> None:
-    items = inventory.items()
+def _print_items(items: list[Item], empty: str) -> None:
     if not items:
-        print("no items")
+        print(empty)
         return
     width = max(len(item.sku) for item in items)
     for item in items:

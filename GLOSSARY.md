@@ -24,6 +24,10 @@ _Avoid_: cost, rate
 quantity times price, for one item or summed over the inventory.
 _Avoid_: total cost, worth
 
+**Running low**:
+an item is running low when its quantity is at or below the cutoff, 5 unless `stock low --at` names another.
+_Avoid_: low stock, reorder level
+
 **Inventory**:
 every item the shop has, kept in one inventory file.
 _Avoid_: catalogue, database
