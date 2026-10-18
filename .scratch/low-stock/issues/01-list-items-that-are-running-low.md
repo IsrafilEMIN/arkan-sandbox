@@ -1,7 +1,7 @@
 # 01: List items that are running low
 
 **Role:** ready-for-agent
-**Closed:** no
+**Closed:** yes
 **Priority:** 2
 **Blocked by:** None (can start immediately)
 
@@ -9,6 +9,6 @@
 
 **Touches:** the inventory and the command line.
 
-- [ ] `stock low` lists the items with 5 or fewer on hand, fewest first, ties by sku
-- [ ] `--at N` sets the cutoff; N can be 0 but not negative
-- [ ] it prints `nothing is running low` when no item is at or below the cutoff
+- [x] `stock low` lists the items with 5 or fewer on hand, fewest first, ties by sku
+- [x] `--at N` sets the cutoff; N can be 0 but not negative
+- [x] it prints `nothing is running low` when no item is at or below the cutoff
