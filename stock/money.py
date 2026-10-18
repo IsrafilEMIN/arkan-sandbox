@@ -27,4 +27,4 @@ def parse_money(text: str) -> int:
     if not _PRICE.fullmatch(cleaned):
         raise InvalidPrice(text)
     dollars, _, frac = cleaned.replace(",", "").partition(".")
-    return int(dollars) * 100 + int(frac or "0")
+    return int(dollars) * 100 + int(frac.ljust(2, "0"))
