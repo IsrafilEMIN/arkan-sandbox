@@ -8,6 +8,9 @@
 - [ ] 03: Apply a filled count sheet #stocktake #ready-for-agent
   `.scratch/stocktake/issues/03-apply-a-filled-count-sheet.md` · blocked by: 01
 
+- [ ] 02: Refuse a negative quantity in add #file-checks #needs-triage
+  `.scratch/file-checks/issues/02-refuse-a-negative-quantity-in-add.md` · blocked by: none
+
 ## Todo
 
 - [ ] 01: Print a count sheet #stocktake #ready-for-agent
