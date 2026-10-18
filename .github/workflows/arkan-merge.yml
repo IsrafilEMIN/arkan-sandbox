@@ -1,0 +1,76 @@
+# arkan-merge: merge a pull request once every check on its head commit passed
+# and a review on that same commit begins with PASS (the verifier's verdict),
+# from a reviewer with write access. the agent never merges; this workflow does,
+# under the repo's branch rules.
+# copy this file to .github/workflows/arkan-merge.yml. setup: ci/README.md in arkan.
+name: arkan-merge
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  arkan-merge:
+    name: arkan-merge
+    # a cheap first filter. on a public repo anyone can review, so the author
+    # association keeps strangers from starting a run; the permission step
+    # below is the rule.
+    if: >-
+      startsWith(github.event.review.body, 'PASS') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+    runs-on: ubuntu-latest
+    # longer than the wait below, which is longer than arkan-review's 30 minutes.
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      REVIEWER: ${{ github.event.review.user.login }}
+      REVIEWED: ${{ github.event.review.commit_id }}
+    steps:
+      - name: The reviewer has write access
+        run: |
+          # an author association of OWNER, MEMBER or COLLABORATOR does not prove
+          # write access (an org member can have read only). ask the repo.
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$REVIEWER/permission" --jq .permission) || perm=""
+          case "$perm" in
+            admin|maintain|write) echo "$REVIEWER has $perm access" ;;
+            *) echo "::error title=arkan-merge::not merging: $REVIEWER has ${perm:-no} access; a verdict counts only from write, maintain or admin"; exit 1 ;;
+          esac
+
+      - name: The verdict covers the current head
+        id: head
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq .head.sha)
+          if [ "$REVIEWED" != "$head" ]; then
+            echo "::error title=arkan-merge::not merging: the verdict is for $REVIEWED, the head is $head"
+            exit 1
+          fi
+          echo "sha=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for every other check on the head
+        env:
+          HEAD: ${{ steps.head.outputs.sha }}
+        run: |
+          # 35 minutes: longer than arkan-review's 30-minute job limit.
+          for i in $(seq 1 105); do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD/check-runs" --paginate --jq '.check_runs[] | select(.name != "arkan-merge")' | jq -s .)
+            total=$(jq length <<<"$runs")
+            open=$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")
+            bad=$(jq -r '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped") | .name] | join(", ")' <<<"$runs")
+            if [ -n "$bad" ]; then echo "::error title=arkan-merge::not merging: failed checks: $bad"; exit 1; fi
+            if [ "$total" -gt 0 ] && [ "$open" -eq 0 ]; then echo "all $total checks passed"; exit 0; fi
+            sleep 20
+          done
+          echo "::error title=arkan-merge::not merging: checks still running after 35 minutes"
+          exit 1
+
+      - name: Merge
+        env:
+          HEAD: ${{ steps.head.outputs.sha }}
+        # github refuses the merge if the head moved since the verdict.
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "$HEAD"
